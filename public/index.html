@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SniperGold AI Analyst — V2</title>
+<style>
+:root{--bg:#0b0d0f;--card:#12161a;--border:#252a2f;--text:#f5f5f5;--muted:#9ca3af;--gold:#d4af37;--green:#31c48d;--red:#ef6b73}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif}
+.wrap{width:min(900px,92%);margin:auto;padding:55px 0}.brand{font-weight:900;letter-spacing:.06em}.brand span{color:var(--gold)}
+.kicker{color:var(--gold);font-size:12px;font-weight:800;letter-spacing:.15em;text-transform:uppercase}
+h1{font-size:clamp(38px,7vw,64px);line-height:1.03;letter-spacing:-.05em;margin:14px 0}
+p{color:var(--muted)}.card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:24px;margin-top:24px}
+.controls{display:grid;grid-template-columns:1fr 1fr auto;gap:12px}
+select,button{width:100%;padding:13px;border-radius:10px;border:1px solid var(--border);font:inherit}
+select{background:#171c21;color:var(--text)}button{background:var(--gold);color:#111;font-weight:800;cursor:pointer}
+.result{display:grid;grid-template-columns:1fr 1fr;gap:12px}.metric{background:#171c21;border:1px solid var(--border);border-radius:12px;padding:15px}.metric small{display:block;color:var(--muted);font-size:11px}.metric strong{font-size:20px}
+.bias{font-size:30px;font-weight:900;margin:8px 0}.green{color:var(--green)}.red{color:var(--red)}
+.status{font-size:12px;margin-top:12px}.error{color:var(--red)}
+footer{margin-top:50px;border-top:1px solid var(--border);padding-top:22px;font-size:12px}
+@media(max-width:650px){.controls,.result{grid-template-columns:1fr}.wrap{padding-top:35px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="brand">SNIPER<span>GOLD</span></div>
+<div style="margin-top:65px" class="kicker">AI Market Analyst • V2</div>
+<h1>Your market.<br><span style="color:var(--gold)">Analyzed.</span></h1>
+<p>Versi V2 mengambil candle XAU/USD dari backend SniperGold dan menghitung konteks teknikal dasar. AI generatif akan disambungkan setelah fondasi data tervalidasi.</p>
+
+<div class="card">
+  <div class="controls">
+    <select id="tf"><option>M5</option><option selected>M15</option><option>H1</option><option>H4</option></select>
+    <select disabled><option>XAUUSD</option></select>
+    <button id="analyze">ANALYZE MARKET</button>
+  </div>
+  <div id="status" class="status"></div>
+</div>
+
+<div class="card" id="panel" style="display:none">
+  <div class="kicker">Market Bias</div>
+  <div id="bias" class="bias">—</div>
+  <p id="price">Price —</p>
+  <div class="result">
+    <div class="metric"><small>Confidence</small><strong id="confidence">—</strong></div>
+    <div class="metric"><small>Trend</small><strong id="trend">—</strong></div>
+    <div class="metric"><small>Structure</small><strong id="structure">—</strong></div>
+    <div class="metric"><small>ATR 14</small><strong id="atr">—</strong></div>
+    <div class="metric"><small>Support</small><strong id="support">—</strong></div>
+    <div class="metric"><small>Resistance</small><strong id="resistance">—</strong></div>
+  </div>
+  <div style="margin-top:22px;border-top:1px solid var(--border);padding-top:18px">
+    <b>Scenario</b><p id="scenario"></p>
+    <b>Invalidation</b><p id="invalidation"></p>
+<div style="margin-top:22px;border-top:1px solid var(--border);padding-top:18px">
+  <b>AI Analyst</b>
+  <p id="aiAnalysis">Menunggu analisis AI…</p>
+</div>
+  </div>
+</div>
+
+<footer><b>#DISCLAIMER</b><br>SniperGold AI dan informasi market hanya untuk informasi/edukasi, bukan nasihat keuangan atau jaminan hasil. Trading forex mengandung risiko kehilangan modal. Data provider dapat berbeda dari feed broker tertentu.</footer>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+$("analyze").onclick=async()=>{
+  const tf=$("tf").value, btn=$("analyze");
+  btn.disabled=true;btn.textContent="ANALYZING…";$("status").textContent="Mengambil data XAU/USD…";$("status").className="status";
+  try{
+    const r=await fetch(`/api/xauusd?tf=${encodeURIComponent(tf)}`), d=await r.json();
+    if(!r.ok||!d.ok) throw new Error(d.error||"Request gagal");
+    const a=d.analysis;
+    $("panel").style.display="block";
+    $("bias").textContent=`● ${a.bias}`;
+    $("bias").className="bias "+(a.bias==="BULLISH"?"green":a.bias==="BEARISH"?"red":"");
+    $("price").textContent=`XAU/USD ${Number(a.price).toFixed(2)} • ${tf}`;
+    $("confidence").textContent=a.confidence+"/100";
+    $("trend").textContent=a.trend;
+    $("structure").textContent=a.structure;
+    $("atr").textContent=a.atr14?Number(a.atr14).toFixed(2):"—";
+    $("support").textContent=a.support?Number(a.support).toFixed(2):"—";
+    $("resistance").textContent=a.resistance?Number(a.resistance).toFixed(2):"—";
+    $("scenario").textContent=a.scenario;
+    $("invalidation").textContent=a.invalidation;
+    $("aiAnalysis").textContent="AI sedang menganalisis market…";
+
+const aiBody={
+  timeframe:tf,
+  marketData:{
+    ...a,
+    lastCandle:d.lastCandle
+  }
+};
+
+const aiRes=await fetch("/api/ai-analysis",{
+  method:"POST",
+  headers:{"Content-Type":"application/json"},
+  body:JSON.stringify(aiBody)
+});
+
+const aiData=await aiRes.json();
+
+if(!aiRes.ok||!aiData.ok){
+  throw new Error(aiData.error||"AI analysis gagal");
+}
+
+const safeAi=aiData.analysis.replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch])).replace(/\*\*(.*?)\*\*/g,"<strong>$1</strong>").replace(/\n/g,"<br>");
+$("aiAnalysis").innerHTML=safeAi;
+    $("status").textContent="Data berhasil diperbarui dari backend SniperGold.";
+  }catch(e){$("status").textContent=e.message;$("status").className="status error"}
+  finally{btn.disabled=false;btn.textContent="ANALYZE MARKET"}
+};
+</script>
+</body></html>
