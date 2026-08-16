@@ -3,112 +3,1181 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SniperGold AI Analyst — V2</title>
+<title>SniperGold AI Analyst — V2.3</title>
+
 <style>
-:root{--bg:#0b0d0f;--card:#12161a;--border:#252a2f;--text:#f5f5f5;--muted:#9ca3af;--gold:#d4af37;--green:#31c48d;--red:#ef6b73}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif}
-.wrap{width:min(900px,92%);margin:auto;padding:55px 0}.brand{font-weight:900;letter-spacing:.06em}.brand span{color:var(--gold)}
-.kicker{color:var(--gold);font-size:12px;font-weight:800;letter-spacing:.15em;text-transform:uppercase}
-h1{font-size:clamp(38px,7vw,64px);line-height:1.03;letter-spacing:-.05em;margin:14px 0}
-p{color:var(--muted)}.card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:24px;margin-top:24px}
-.controls{display:grid;grid-template-columns:1fr 1fr auto;gap:12px}
-select,button{width:100%;padding:13px;border-radius:10px;border:1px solid var(--border);font:inherit}
-select{background:#171c21;color:var(--text)}button{background:var(--gold);color:#111;font-weight:800;cursor:pointer}
-.result{display:grid;grid-template-columns:1fr 1fr;gap:12px}.metric{background:#171c21;border:1px solid var(--border);border-radius:12px;padding:15px}.metric small{display:block;color:var(--muted);font-size:11px}.metric strong{font-size:20px}
-.bias{font-size:30px;font-weight:900;margin:8px 0}.green{color:var(--green)}.red{color:var(--red)}
-.status{font-size:12px;margin-top:12px}.error{color:var(--red)}
-footer{margin-top:50px;border-top:1px solid var(--border);padding-top:22px;font-size:12px}
-@media(max-width:650px){.controls,.result{grid-template-columns:1fr}.wrap{padding-top:35px}}
-</style>
-</head>
-<body>
-<div class="wrap">
-<div class="brand">SNIPER<span>GOLD</span></div>
-<div style="margin-top:65px" class="kicker">AI Market Analyst • V2</div>
-<h1>Your market.<br><span style="color:var(--gold)">Analyzed.</span></h1>
-<p>Versi V2 mengambil candle XAU/USD dari backend SniperGold dan menghitung konteks teknikal dasar. AI generatif akan disambungkan setelah fondasi data tervalidasi.</p>
-
-<div class="card">
-  <div class="controls">
-    <select id="tf"><option>M5</option><option selected>M15</option><option>H1</option><option>H4</option></select>
-    <select disabled><option>XAUUSD</option></select>
-    <button id="analyze">ANALYZE MARKET</button>
-  </div>
-  <div id="status" class="status"></div>
-</div>
-
-<div class="card" id="panel" style="display:none">
-  <div class="kicker">Market Bias</div>
-  <div id="bias" class="bias">—</div>
-  <p id="price">Price —</p>
-  <div class="result">
-    <div class="metric"><small>Confidence</small><strong id="confidence">—</strong></div>
-    <div class="metric"><small>Trend</small><strong id="trend">—</strong></div>
-    <div class="metric"><small>Structure</small><strong id="structure">—</strong></div>
-    <div class="metric"><small>ATR 14</small><strong id="atr">—</strong></div>
-    <div class="metric"><small>Support</small><strong id="support">—</strong></div>
-    <div class="metric"><small>Resistance</small><strong id="resistance">—</strong></div>
-  </div>
-  <div style="margin-top:22px;border-top:1px solid var(--border);padding-top:18px">
-    <b>Scenario</b><p id="scenario"></p>
-    <b>Invalidation</b><p id="invalidation"></p>
-<div style="margin-top:22px;border-top:1px solid var(--border);padding-top:18px">
-  <b>AI Analyst</b>
-  <p id="aiAnalysis">Menunggu analisis AI…</p>
-</div>
-  </div>
-</div>
-
-<footer><b>#DISCLAIMER</b><br>SniperGold AI dan informasi market hanya untuk informasi/edukasi, bukan nasihat keuangan atau jaminan hasil. Trading forex mengandung risiko kehilangan modal. Data provider dapat berbeda dari feed broker tertentu.</footer>
-</div>
-<script>
-const $=id=>document.getElementById(id);
-$("analyze").onclick=async()=>{
-  const tf=$("tf").value, btn=$("analyze");
-  btn.disabled=true;btn.textContent="ANALYZING…";$("status").textContent="Mengambil data XAU/USD…";$("status").className="status";
-  try{
-    const r=await fetch(`/api/xauusd?tf=${encodeURIComponent(tf)}`), d=await r.json();
-    if(!r.ok||!d.ok) throw new Error(d.error||"Request gagal");
-    const a=d.analysis;
-    $("panel").style.display="block";
-    $("bias").textContent=`● ${a.bias}`;
-    $("bias").className="bias "+(a.bias==="BULLISH"?"green":a.bias==="BEARISH"?"red":"");
-    $("price").textContent=`XAU/USD ${Number(a.price).toFixed(2)} • ${tf}`;
-    $("confidence").textContent=a.confidence+"/100";
-    $("trend").textContent=a.trend;
-    $("structure").textContent=a.structure;
-    $("atr").textContent=a.atr14?Number(a.atr14).toFixed(2):"—";
-    $("support").textContent=a.support?Number(a.support).toFixed(2):"—";
-    $("resistance").textContent=a.resistance?Number(a.resistance).toFixed(2):"—";
-    $("scenario").textContent=a.scenario;
-    $("invalidation").textContent=a.invalidation;
-    $("aiAnalysis").textContent="AI sedang menganalisis market…";
-
-const aiBody={
-  timeframe:tf,
-  marketData:{
-    ...a,
-    lastCandle:d.lastCandle
-  }
-};
-
-const aiRes=await fetch("/api/ai-analysis",{
-  method:"POST",
-  headers:{"Content-Type":"application/json"},
-  body:JSON.stringify(aiBody)
-});
-
-const aiData=await aiRes.json();
-
-if(!aiRes.ok||!aiData.ok){
-  throw new Error(aiData.error||"AI analysis gagal");
+:root{
+  --bg:#090b0d;
+  --card:#111519;
+  --card2:#171c21;
+  --border:#252b31;
+  --text:#f5f5f5;
+  --muted:#9299a3;
+  --gold:#d4af37;
+  --green:#31c48d;
+  --red:#ef6b73;
+  --yellow:#e7c75f;
 }
 
-const safeAi=aiData.analysis.replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch])).replace(/\*\*(.*?)\*\*/g,"<strong>$1</strong>").replace(/\n/g,"<br>");
-$("aiAnalysis").innerHTML=safeAi;
-    $("status").textContent="Data berhasil diperbarui dari backend SniperGold.";
-  }catch(e){$("status").textContent=e.message;$("status").className="status error"}
-  finally{btn.disabled=false;btn.textContent="ANALYZE MARKET"}
-};
+*{
+  box-sizing:border-box;
+}
+
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+
+.wrap{
+  width:min(1050px,92%);
+  margin:auto;
+  padding:42px 0 60px;
+}
+
+.brand{
+  font-weight:900;
+  letter-spacing:.08em;
+  font-size:18px;
+}
+
+.brand span{
+  color:var(--gold);
+}
+
+.kicker{
+  color:var(--gold);
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+}
+
+.hero{
+  margin-top:58px;
+}
+
+h1{
+  font-size:clamp(38px,7vw,68px);
+  line-height:1;
+  letter-spacing:-.055em;
+  margin:13px 0;
+}
+
+.hero p{
+  max-width:720px;
+  color:var(--muted);
+  line-height:1.7;
+}
+
+.card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:18px;
+  padding:22px;
+  margin-top:22px;
+}
+
+.controls{
+  display:grid;
+  grid-template-columns:1fr 1fr auto;
+  gap:12px;
+}
+
+select,
+button{
+  width:100%;
+  padding:13px 14px;
+  border-radius:10px;
+  border:1px solid var(--border);
+  font:inherit;
+}
+
+select{
+  background:var(--card2);
+  color:var(--text);
+}
+
+button{
+  background:var(--gold);
+  color:#111;
+  font-weight:900;
+  cursor:pointer;
+}
+
+button:disabled{
+  opacity:.55;
+  cursor:wait;
+}
+
+.status{
+  margin-top:12px;
+  color:var(--muted);
+  font-size:12px;
+}
+
+.error{
+  color:var(--red);
+}
+
+.panel{
+  display:none;
+}
+
+.top-grid{
+  display:grid;
+  grid-template-columns:1.2fr .8fr;
+  gap:14px;
+}
+
+.bias-box{
+  background:var(--card2);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:20px;
+}
+
+.bias{
+  font-size:36px;
+  font-weight:950;
+  margin-top:6px;
+}
+
+.green{
+  color:var(--green);
+}
+
+.red{
+  color:var(--red);
+}
+
+.yellow{
+  color:var(--yellow);
+}
+
+.price{
+  margin:8px 0 0;
+  color:var(--muted);
+}
+
+.confidence{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+
+.confidence strong{
+  font-size:32px;
+}
+
+.bar{
+  height:7px;
+  background:#252a2f;
+  border-radius:99px;
+  overflow:hidden;
+  margin-top:14px;
+}
+
+.bar span{
+  display:block;
+  height:100%;
+  width:0;
+  background:var(--gold);
+  transition:width .4s ease;
+}
+
+.decision-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:12px;
+  margin-top:14px;
+}
+
+.metric{
+  background:var(--card2);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:15px;
+}
+
+.metric small{
+  display:block;
+  color:var(--muted);
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+}
+
+.metric strong{
+  display:block;
+  font-size:17px;
+  margin-top:7px;
+}
+
+.section{
+  margin-top:22px;
+  border-top:1px solid var(--border);
+  padding-top:20px;
+}
+
+.section-title{
+  font-weight:850;
+  margin-bottom:12px;
+}
+
+.reason-list{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  padding:0;
+  margin:0;
+  list-style:none;
+}
+
+.reason-list li{
+  background:#1b2126;
+  border:1px solid var(--border);
+  border-radius:999px;
+  padding:7px 10px;
+  color:#d8dde2;
+  font-size:12px;
+}
+
+.levels{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+}
+
+.level{
+  background:var(--card2);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:15px;
+}
+
+.level small{
+  display:block;
+  color:var(--muted);
+  font-size:10px;
+  text-transform:uppercase;
+}
+
+.level strong{
+  display:block;
+  margin-top:6px;
+  font-size:20px;
+}
+
+.scenario{
+  line-height:1.7;
+  color:#dce1e5;
+}
+
+.ai{
+  background:#0d1013;
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:18px;
+  line-height:1.7;
+  color:#e4e7ea;
+}
+
+.ai strong{
+  color:var(--gold);
+}
+
+footer{
+  margin-top:48px;
+  border-top:1px solid var(--border);
+  padding-top:20px;
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.7;
+}
+
+@media(max-width:720px){
+
+  .controls,
+  .top-grid,
+  .decision-grid{
+    grid-template-columns:1fr;
+  }
+
+  .levels{
+    grid-template-columns:1fr;
+  }
+
+  .wrap{
+    padding-top:30px;
+  }
+}
+</style>
+<script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+</head>
+
+<body>
+
+<div class="wrap">
+
+  <div class="brand">
+    SNIPER<span>GOLD</span>
+  </div>
+
+  <div class="hero">
+    <div class="kicker">
+      AI Market Analyst • V2.3
+    </div>
+
+    <h1>
+      Your market.<br>
+      <span style="color:var(--gold)">
+        Analyzed.
+      </span>
+    </h1>
+
+    <p>
+      SniperGold menggabungkan market structure,
+      trend, momentum, volatility, support/resistance
+      dan confluence untuk membangun konteks analisis
+      XAU/USD. AI digunakan untuk menginterpretasikan
+      data teknikal yang telah dihitung oleh engine.
+    </p>
+  </div>
+
+
+  <div class="card">
+
+    <div class="controls">
+
+      <select id="tf">
+        <option>M5</option>
+        <option selected>M15</option>
+        <option>H1</option>
+        <option>H4</option>
+      </select>
+
+      <select disabled>
+        <option>XAUUSD</option>
+      </select>
+
+      <button id="analyze">
+        ANALYZE MARKET
+      </button>
+
+    </div>
+
+    <div id="status" class="status"></div>
+
+  </div>
+
+<div class="card" id="chartCard">
+  <div class="kicker">XAU/USD MARKET CHART</div>
+
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
+    <div>
+      <strong id="chartPrice">—</strong>
+      <div id="chartTime" style="font-size:11px;color:var(--muted)">
+        Waiting for market data
+      </div>
+    </div>
+
+    <div id="chartTF" style="font-size:12px;color:var(--muted)">
+      M15
+    </div>
+  </div>
+
+  <div id="marketChart"
+       style="width:100%;height:430px;margin-top:18px;">
+  </div>
+</div>
+  <div class="card panel" id="panel">
+
+    <div class="top-grid">
+
+      <div class="bias-box">
+
+        <div class="kicker">
+          Market Bias
+        </div>
+
+        <div
+          id="bias"
+          class="bias"
+        >
+          —
+        </div>
+
+        <div
+          id="price"
+          class="price"
+        >
+          XAU/USD —
+        </div>
+
+      </div>
+
+
+      <div class="bias-box">
+
+        <div class="kicker">
+          Confidence
+        </div>
+
+        <div class="confidence">
+
+          <strong id="confidence">
+            —
+          </strong>
+
+          <span>
+            /100
+          </span>
+
+        </div>
+
+        <div class="bar">
+          <span id="confidenceBar"></span>
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <div class="decision-grid">
+
+      <div class="metric">
+        <small>Directional Pressure</small>
+        <strong id="trend">—</strong>
+      </div>
+
+      <div class="metric">
+        <small>Market Structure</small>
+        <strong id="structure">—</strong>
+      </div>
+
+      <div class="metric">
+        <small>Structure Detail</small>
+        <strong id="structureDetails">—</strong>
+      </div>
+
+      <div class="metric">
+        <small>Momentum</small>
+        <strong id="momentum">—</strong>
+      </div>
+
+      <div class="metric">
+        <small>Breakout</small>
+        <strong id="breakout">—</strong>
+      </div>
+
+      <div class="metric">
+        <small>Setup</small>
+        <strong id="pullback">—</strong>
+      </div>
+
+    </div>
+
+
+    <div class="section">
+
+      <div class="section-title">
+        Confluence
+      </div>
+
+      <div class="decision-grid">
+
+        <div class="metric">
+          <small>Bullish Factors</small>
+          <strong id="bullishScore">—</strong>
+        </div>
+
+        <div class="metric">
+          <small>Bearish Factors</small>
+          <strong id="bearishScore">—</strong>
+        </div>
+
+        <div class="metric">
+          <small>Total Factors</small>
+          <strong id="totalScore">—</strong>
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <div class="section">
+
+      <div class="section-title">
+        Analysis Reasons
+      </div>
+
+      <ul
+        id="reasons"
+        class="reason-list"
+      ></ul>
+
+    </div>
+
+
+    <div class="section">
+
+      <div class="section-title">
+        Key Levels
+      </div>
+
+      <div class="levels">
+
+        <div class="level">
+          <small>Support</small>
+          <strong id="support">—</strong>
+        </div>
+
+        <div class="level">
+          <small>Resistance</small>
+          <strong id="resistance">—</strong>
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <div class="section">
+
+      <div class="section-title">
+        Scenario
+      </div>
+
+      <div
+        id="scenario"
+        class="scenario"
+      >
+        —
+      </div>
+
+    </div>
+
+
+    <div class="section">
+
+      <div class="section-title">
+        Invalidation
+      </div>
+
+      <div
+        id="invalidation"
+        class="scenario"
+      >
+        —
+      </div>
+
+    </div>
+
+
+    <div class="section">
+
+      <div class="section-title">
+        AI Analyst
+      </div>
+
+      <div
+        id="aiAnalysis"
+        class="ai"
+      >
+        Menunggu analisis AI…
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <footer>
+
+    <b>#DISCLAIMER</b><br>
+
+    SniperGold AI dan informasi market hanya untuk
+    informasi dan edukasi, bukan nasihat keuangan
+    atau investasi dan bukan jaminan hasil.
+
+    Trading forex mengandung risiko kehilangan modal.
+
+    Confidence menunjukkan kekuatan confluence teknikal,
+    bukan probabilitas profit.
+
+    Data provider dapat berbeda dari feed broker tertentu.
+
+  </footer>
+
+</div>
+
+
+<script>
+
+const $ = id =>
+  document.getElementById(id);
+let marketChart = null;
+let candleSeries = null;
+let ema20Series = null;
+let ema50Series = null;
+let ema100Series = null;
+let supportSeries = null;
+let resistanceSeries = null;
+function renderMarketChart(candles, analysis, timeframe) {
+  const container = $("marketChart");
+
+  if (!container || !candles?.length) {
+    return;
+  }
+
+  container.innerHTML = "";
+
+  marketChart = LightweightCharts.createChart(container, {
+    width: container.clientWidth,
+    height: 430,
+
+    layout: {
+      background: { color: "#111519" },
+      textColor: "#9299a3"
+    },
+
+    grid: {
+      vertLines: { color: "#1d2227" },
+      horzLines: { color: "#1d2227" }
+    },
+
+    rightPriceScale: {
+      borderColor: "#252b31"
+    },
+
+    timeScale: {
+      borderColor: "#252b31",
+      timeVisible: true,
+      secondsVisible: false
+    }
+  });
+
+  candleSeries = marketChart.addSeries(
+  LightweightCharts.CandlestickSeries,
+  {
+    upColor: "#31c48d",
+    downColor: "#ef6b73",
+    borderUpColor: "#31c48d",
+    borderDownColor: "#ef6b73",
+    wickUpColor: "#31c48d",
+    wickDownColor: "#ef6b73"
+  }
+);
+  const candleData = candles.map(candle => ({
+    time: Math.floor(
+      new Date(candle.time).getTime() / 1000
+    ),
+    open: Number(candle.open),
+    high: Number(candle.high),
+    low: Number(candle.low),
+    close: Number(candle.close)
+  }));
+
+  candleSeries.setData(candleData);
+function calculateEMA(candles, period) {
+  if (!candles || candles.length < period) {
+    return [];
+  }
+
+  const multiplier = 2 / (period + 1);
+  const result = [];
+
+  let emaValue =
+    candles
+      .slice(0, period)
+      .reduce(
+        (sum, candle) => sum + Number(candle.close),
+        0
+      ) / period;
+
+  result.push({
+    time: candleData[period - 1].time,
+    value: emaValue
+  });
+
+  for (let i = period; i < candles.length; i++) {
+    const close = Number(candles[i].close);
+
+    emaValue =
+      (close - emaValue) * multiplier + emaValue;
+
+    result.push({
+      time: candleData[i].time,
+      value: emaValue
+    });
+  }
+
+  return result;
+}
+
+
+ema20Series =
+  marketChart.addSeries(
+    LightweightCharts.LineSeries,
+    {
+      color: "#f0cf62",
+      lineWidth: 2,
+      priceLineVisible: false,
+      lastValueVisible: false
+    }
+  );
+ema20Series.setData(
+  calculateEMA(candles, 20)
+);
+ema50Series =
+  marketChart.addSeries(
+    LightweightCharts.LineSeries,
+    {
+      color: "#5ea7ff",
+      lineWidth: 2,
+      priceLineVisible: false,
+      lastValueVisible: false
+    }
+  );
+ema50Series.setData(
+  calculateEMA(candles, 50)
+);
+ema100Series =
+  marketChart.addSeries(
+    LightweightCharts.LineSeries,
+    {
+      color: "#c084fc",
+      lineWidth: 2,
+      priceLineVisible: false,
+      lastValueVisible: false
+    }
+  );
+ema100Series.setData(
+  calculateEMA(candles, 100)
+);
+
+ supportSeries =
+  marketChart.addSeries(
+    LightweightCharts.LineSeries,
+    {
+      color: "#31c48d",
+      lineWidth: 1,
+      lineStyle: 2,
+      priceLineVisible: false,
+      lastValueVisible: false
+    }
+  );
+resistanceSeries =
+  marketChart.addSeries(
+    LightweightCharts.LineSeries,
+    {
+      color: "#ef6b73",
+      lineWidth: 1,
+      lineStyle: 2,
+      priceLineVisible: false,
+      lastValueVisible: false
+    }
+  );
+const support = Number(analysis.support);
+const resistance = Number(analysis.resistance);
+
+if (Number.isFinite(support)) {
+  supportSeries.setData(
+    candleData.map(candle => ({
+      time: candle.time,
+      value: support
+    }))
+  );
+}
+
+if (Number.isFinite(resistance)) {
+  resistanceSeries.setData(
+    candleData.map(candle => ({
+      time: candle.time,
+      value: resistance
+    }))
+  );
+}
+if (candleSeries && Number.isFinite(Number(analysis.price))) {
+  candleSeries.createPriceLine({
+    price: Number(analysis.price),
+    color: "#d4af37",
+    lineWidth: 1,
+    lineStyle: 2,
+    axisLabelVisible: true,
+    title: "PRICE"
+  });
+}
+  marketChart.timeScale().fitContent();
+
+  $("chartPrice").textContent =
+    formatPrice(analysis.price);
+
+  $("chartTF").textContent =
+    timeframe;
+
+  $("chartTime").textContent =
+    candles.at(-1)?.time || "—";
+}
+
+function formatPrice(value){
+
+  if(
+    value === null ||
+    value === undefined ||
+    Number.isNaN(Number(value))
+  ){
+    return "—";
+  }
+
+  return Number(value).toFixed(2);
+}
+
+
+function setDirectionColor(
+  element,
+  value
+){
+
+  element.classList.remove(
+    "green",
+    "red",
+    "yellow"
+  );
+
+  if(
+    value === "BULLISH" ||
+    value === "BULLISH_PULLBACK"
+  ){
+    element.classList.add("green");
+  }
+
+  else if(
+    value === "BEARISH" ||
+    value === "BEARISH_PULLBACK"
+  ){
+    element.classList.add("red");
+  }
+
+  else{
+    element.classList.add("yellow");
+  }
+}
+
+
+$("analyze").onclick =
+  async () => {
+
+    const tf =
+      $("tf").value;
+
+    const btn =
+      $("analyze");
+
+
+    btn.disabled = true;
+
+    btn.textContent =
+      "ANALYZING…";
+
+
+    $("status").textContent =
+      "Mengambil data XAU/USD…";
+
+    $("status").className =
+      "status";
+
+
+    try{
+
+      const response =
+        await fetch(
+          `/api/xauusd?tf=${encodeURIComponent(tf)}`
+        );
+
+
+      const data =
+        await response.json();
+
+
+      if(
+        !response.ok ||
+        !data.ok
+      ){
+        throw new Error(
+          data.error ||
+          "Request gagal."
+        );
+      }
+
+
+      const a =
+        data.analysis;
+
+      const decision =
+        data.marketDecision;
+renderMarketChart(
+  data.candles,
+  a,
+  tf
+);
+
+      $("panel").style.display =
+        "block";
+
+
+      $("bias").textContent =
+        decision.bias;
+
+
+      setDirectionColor(
+        $("bias"),
+        decision.bias
+      );
+
+
+      $("price").textContent =
+        `XAU/USD ${formatPrice(a.price)} • ${tf}`;
+
+
+      $("confidence").textContent =
+        decision.confidence;
+
+
+      $("confidenceBar").style.width =
+        `${decision.confidence}%`;
+
+
+      $("trend").textContent =
+        decision.directionalPressure;
+
+      setDirectionColor(
+        $("trend"),
+        decision.directionalPressure
+      );
+
+
+      $("structure").textContent =
+        decision.structure;
+
+
+      $("structureDetails").textContent =
+        Array.isArray(
+          decision.structureDetails
+        )
+          ? decision.structureDetails.join(
+              " + "
+            )
+          : "—";
+
+
+      $("momentum").textContent =
+        decision.momentum;
+
+      setDirectionColor(
+        $("momentum"),
+        decision.momentum
+      );
+
+
+      $("breakout").textContent =
+        decision.breakout;
+
+
+      $("pullback").textContent =
+        decision.pullback;
+
+
+      setDirectionColor(
+        $("pullback"),
+        decision.pullback
+      );
+
+
+      $("bullishScore").textContent =
+        decision.confluence.bullish;
+
+
+      $("bearishScore").textContent =
+        decision.confluence.bearish;
+
+
+      $("totalScore").textContent =
+        decision.confluence.total;
+
+
+      const reasons =
+        $("reasons");
+
+      reasons.innerHTML = "";
+
+
+      if(
+        Array.isArray(
+          decision.reasons
+        )
+      ){
+
+        decision.reasons.forEach(
+          reason => {
+
+            const li =
+              document.createElement(
+                "li"
+              );
+
+            li.textContent =
+              reason;
+
+            reasons.appendChild(
+              li
+            );
+
+          }
+        );
+
+      }
+
+
+      $("support").textContent =
+        formatPrice(
+          decision.support
+        );
+
+
+      $("resistance").textContent =
+        formatPrice(
+          decision.resistance
+        );
+
+
+      $("scenario").textContent =
+        decision.scenario;
+
+
+      $("invalidation").textContent =
+        decision.invalidation;
+
+
+      $("aiAnalysis").textContent =
+        "AI sedang menganalisis market…";
+
+
+      const aiBody = {
+
+        timeframe: tf,
+
+        marketData: {
+
+          ...a,
+
+          marketDecision:
+            decision,
+
+          lastCandle:
+            data.lastCandle
+
+        }
+
+      };
+
+
+      const aiResponse =
+        await fetch(
+          "/api/ai-analysis",
+          {
+            method: "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json"
+            },
+
+            body:
+              JSON.stringify(
+                aiBody
+              )
+          }
+        );
+
+
+      const aiData =
+        await aiResponse.json();
+
+
+      if(
+        !aiResponse.ok ||
+        !aiData.ok
+      ){
+
+        throw new Error(
+          aiData.error ||
+          "AI analysis gagal."
+        );
+
+      }
+
+
+      const safeAi =
+        aiData.analysis
+          .replace(
+            /[&<>"']/g,
+            character => ({
+              "&":"&amp;",
+              "<":"&lt;",
+              ">":"&gt;",
+              '"':"&quot;",
+              "'":"&#39;"
+            }[character])
+          )
+          .replace(
+            /\*\*(.*?)\*\*/g,
+            "<strong>$1</strong>"
+          )
+          .replace(
+            /\n/g,
+            "<br>"
+          );
+
+
+      $("aiAnalysis").innerHTML =
+        safeAi;
+
+
+      $("status").textContent =
+        "Analisis market dan AI berhasil diperbarui.";
+
+
+    }catch(error){
+
+      console.error(error);
+
+      $("status").textContent =
+        error.message;
+
+      $("status").className =
+        "status error";
+
+    }
+
+
+    finally{
+
+      btn.disabled =
+        false;
+
+      btn.textContent =
+        "ANALYZE MARKET";
+
+    }
+
+  };
+
 </script>
-</body></html>
+
+</body>
+</html>
